@@ -14,8 +14,7 @@
 ---
 
 ## In Progress
-- [ ] T01: `src/services/firebase.ts` — Firebase 앱 초기화 및 Firestore/Auth 인스턴스 export
-- [ ] T02: `src/features/auth/hooks/useAuth.ts` — Firebase Auth 상태 구독 훅 (onAuthStateChanged)
+_현재 작업 중인 항목 (에이전트가 시작 시 여기로 이동)_
 
 ---
 
@@ -64,3 +63,5 @@ _에이전트가 새 작업을 발굴하면 여기에 추가_
 
 ## Done
 - [x] T00: Vite+React+TypeScript+Tailwind 스캐폴딩, SplitLayout, MapContainer 뼈대, CLAUDE.md, .env.example
+- [x] T01: `src/services/firebase.ts` — Firebase 앱 초기화 및 Firestore/Auth 인스턴스 export
+- [x] T02: `src/features/auth/hooks/useAuth.ts` — Firebase Auth 상태 구독 훅 (onAuthStateChanged)
