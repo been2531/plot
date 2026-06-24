@@ -2,12 +2,22 @@ import {
   collection,
   addDoc,
   setDoc,
+  getDocs,
+  deleteDoc,
   serverTimestamp,
   doc,
   updateDoc,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import type { Pin } from '@/shared/types'
+
+export interface UpdatePlotInput {
+  title?: string
+  description?: string
+  tags?: string[]
+  isPublic?: boolean
+  creatorSupportUrl?: string
+}
 
 export interface CreatePlotInput {
   title: string
@@ -49,6 +59,26 @@ export async function createPlot(input: CreatePlotInput): Promise<string> {
   )
 
   return ref.id
+}
+
+/** 플롯 메타데이터 수정 */
+export async function updatePlot(plotId: string, data: UpdatePlotInput): Promise<void> {
+  await updateDoc(doc(db, 'plots', plotId), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** 플롯 및 연관 핀 전체 삭제 */
+export async function deletePlot(plotId: string): Promise<void> {
+  const pinsSnap = await getDocs(collection(db, 'plots', plotId, 'pins'))
+  await Promise.all(
+    pinsSnap.docs.flatMap((pinDoc) => [
+      deleteDoc(doc(db, 'pins', pinDoc.id)),
+      deleteDoc(pinDoc.ref),
+    ]),
+  )
+  await deleteDoc(doc(db, 'plots', plotId))
 }
 
 /** 플롯 핀 순서(pinIds) 업데이트 */

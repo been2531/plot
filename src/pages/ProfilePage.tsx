@@ -5,6 +5,7 @@ import { db } from '@/services/firebase'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useFollow } from '@/features/auth/hooks/useFollow'
 import { fetchScrapIds } from '@/features/feed/hooks/useScrap'
+import { updateUserProfile } from '@/services/userService'
 import FeedGrid from '@/features/feed/components/FeedGrid'
 import type { UserProfile, Plot } from '@/shared/types'
 
@@ -85,6 +86,72 @@ async function fetchScrappedPlots(uid: string): Promise<Plot[]> {
 
 type Tab = 'plots' | 'scraps'
 
+function EditProfileModal({ profile, onClose, onSave }: {
+  profile: UserProfile
+  onClose: () => void
+  onSave: (displayName: string, bio: string) => void
+}) {
+  const { user } = useAuth()
+  const [displayName, setDisplayName] = useState(profile.displayName)
+  const [bio, setBio] = useState(profile.bio ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!displayName.trim()) { setError('이름을 입력해주세요.'); return }
+    if (!user) return
+    setSaving(true)
+    setError(null)
+    try {
+      await updateUserProfile(user.uid, {
+        displayName: displayName.trim(),
+        bio: bio.trim() || undefined,
+      })
+      onSave(displayName.trim(), bio.trim())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
+      setSaving(false)
+    }
+  }
+
+  const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-plot-clay/60 transition-colors'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl shadow-2xl p-6 space-y-4">
+        <h2 className="text-sm font-semibold text-white/80">프로필 편집</h2>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="text-xs text-white/45 mb-1.5 block">이름 *</label>
+            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={30} className={inputCls} />
+          </div>
+          <div>
+            <label className="text-xs text-white/45 mb-1.5 block">소개</label>
+            <textarea value={bio} onChange={(e) => setBio(e.target.value)}
+              rows={3} maxLength={150} placeholder="간단한 자기소개를 적어주세요."
+              className={`${inputCls} resize-none`} />
+          </div>
+          {error && <p className="text-xs text-red-400/80">{error}</p>}
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2 rounded-xl text-xs text-white/40 border border-white/10 hover:text-white/60 transition-colors">
+              취소
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 py-2 rounded-xl bg-plot-clay text-white text-xs font-semibold
+                hover:bg-plot-clay/80 disabled:opacity-50 transition-colors">
+              {saving ? '저장 중…' : '저장'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function FollowButton({ uid, targetUid }: { uid: string | null; targetUid: string }) {
   const { isFollowing, loading, toggle } = useFollow(uid, targetUid)
   if (!uid || uid === targetUid) return null
@@ -113,6 +180,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [scrapsLoading, setScrapsLoading] = useState(false)
   const [notFound, setNotFound] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   const isMe = user?.uid === uid
 
@@ -178,6 +246,15 @@ export default function ProfilePage() {
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-base font-semibold text-white/90">{profile.displayName}</h1>
               <FollowButton uid={user?.uid ?? null} targetUid={profile.uid} />
+              {isMe && (
+                <button
+                  onClick={() => setEditOpen(true)}
+                  className="text-xs text-white/35 hover:text-white/60 border border-white/10
+                    hover:border-white/20 rounded-full px-3 py-0.5 transition-colors"
+                >
+                  편집
+                </button>
+              )}
             </div>
             {profile.bio && (
               <p className="text-xs text-white/45 mt-1 line-clamp-2">{profile.bio}</p>
@@ -239,6 +316,17 @@ export default function ProfilePage() {
           )
         )}
       </div>
+
+      {editOpen && profile && (
+        <EditProfileModal
+          profile={profile}
+          onClose={() => setEditOpen(false)}
+          onSave={(displayName, bio) => {
+            setProfile((prev) => prev ? { ...prev, displayName, bio: bio || undefined } : prev)
+            setEditOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }
