@@ -14,7 +14,7 @@
 ---
 
 ## In Progress
-_현재 작업 중인 항목 (에이전트가 시작 시 여기로 이동)_
+- [ ] T07: `src/features/feed/hooks/useFeed.ts` — Firestore `plots` 컬렉션 페이지네이션 훅
 
 ---
 
@@ -23,7 +23,6 @@ _현재 작업 중인 항목 (에이전트가 시작 시 여기로 이동)_
 ### 기반 인프라
 
 ### 피드 기능
-- [ ] T07: `src/features/feed/hooks/useFeed.ts` — Firestore `plots` 컬렉션 페이지네이션 훅
 - [ ] T08: 스크랩 기능 — 플롯 카드의 [북마크] 버튼 → Firestore `users/{uid}/scraps` 저장
 
 ### 지도 기능

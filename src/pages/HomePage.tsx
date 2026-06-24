@@ -1,95 +1,11 @@
 import SplitLayout from '@/components/SplitLayout'
 import MapContainer from '@/features/map/components/MapContainer'
 import FeedGrid from '@/features/feed/components/FeedGrid'
-import type { Plot } from '@/shared/types'
-
-// T07(useFeed 훅) 구현 전까지 사용하는 더미 데이터
-const DUMMY_PLOTS: Plot[] = [
-  {
-    id: '1',
-    title: '성수동 감성 카페 투어',
-    authorId: 'u1',
-    authorName: '지은',
-    pins: [],
-    pinIds: [],
-    tags: ['성수', '카페', '주말'],
-    coverImageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&q=80',
-    isPublic: true,
-    scrapCount: 42,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '2',
-    title: '익선동 골목 산책 — 오래된 것들의 아름다움',
-    authorId: 'u2',
-    authorName: '민준',
-    pins: [],
-    pinIds: [],
-    tags: ['익선동', '한옥'],
-    coverImageUrl: 'https://images.unsplash.com/photo-1598935898639-81586f7d2129?w=400&q=80',
-    isPublic: true,
-    scrapCount: 87,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '3',
-    title: '한강 노을 동선',
-    authorId: 'u3',
-    authorName: '서연',
-    pins: [],
-    pinIds: [],
-    tags: ['한강', '노을', '피크닉'],
-    isPublic: true,
-    scrapCount: 23,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '4',
-    title: '북촌 한옥마을 골목 지도',
-    authorId: 'u4',
-    authorName: '도윤',
-    pins: [],
-    pinIds: [],
-    tags: ['북촌', '한옥', '서울'],
-    coverImageUrl: 'https://images.unsplash.com/photo-1601042879364-f3947d3f9c16?w=400&q=80',
-    isPublic: true,
-    scrapCount: 134,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '5',
-    title: '망원시장 주변 맛집 루트',
-    authorId: 'u5',
-    authorName: '하은',
-    pins: [],
-    pinIds: [],
-    tags: ['망원', '맛집'],
-    isPublic: true,
-    scrapCount: 61,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '6',
-    title: '연남동 저녁 산책 코스',
-    authorId: 'u6',
-    authorName: '준서',
-    pins: [],
-    pinIds: [],
-    tags: ['연남동', '저녁', '산책'],
-    coverImageUrl: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80',
-    isPublic: true,
-    scrapCount: 19,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-]
+import { useFeed } from '@/features/feed/hooks/useFeed'
 
 function FeedPanel() {
+  const { plots, loading, loadingMore, error, hasMore, loadMore } = useFeed()
+
   return (
     <div className="flex flex-col h-full">
       {/* 피드 헤더 */}
@@ -98,9 +14,37 @@ function FeedPanel() {
           최신 플롯
         </h2>
       </div>
+
+      {/* 에러 배너 */}
+      {error && !loading && (
+        <div className="mx-3 mt-3 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20">
+          <p className="text-xs text-red-400">{error}</p>
+        </div>
+      )}
+
       {/* 피드 스크롤 영역 */}
       <div className="flex-1 overflow-y-auto">
-        <FeedGrid plots={DUMMY_PLOTS} />
+        <FeedGrid plots={plots} isLoading={loading} />
+
+        {/* 더 불러오기 버튼 */}
+        {!loading && hasMore && (
+          <div className="flex justify-center pb-6 pt-2">
+            <button
+              onClick={() => void loadMore()}
+              disabled={loadingMore}
+              className="px-5 py-2 rounded-full text-xs font-medium border border-white/15
+                text-white/50 hover:text-white/80 hover:border-white/30
+                disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
+            >
+              {loadingMore ? '불러오는 중…' : '더 보기'}
+            </button>
+          </div>
+        )}
+
+        {/* 더 이상 없음 */}
+        {!loading && !hasMore && plots.length > 0 && (
+          <p className="text-center text-xs text-white/20 pb-6 pt-2">모든 플롯을 불러왔습니다</p>
+        )}
       </div>
     </div>
   )
