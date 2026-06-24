@@ -2,9 +2,13 @@ import SplitLayout from '@/components/SplitLayout'
 import MapContainer from '@/features/map/components/MapContainer'
 import FeedGrid from '@/features/feed/components/FeedGrid'
 import { useFeed } from '@/features/feed/hooks/useFeed'
+import { useScrap } from '@/features/feed/hooks/useScrap'
+import { useAuth } from '@/features/auth/hooks/useAuth'
 
 function FeedPanel() {
+  const { user } = useAuth()
   const { plots, loading, loadingMore, error, hasMore, loadMore } = useFeed()
+  const { scrappedIds, toggleScrap } = useScrap(user?.uid ?? null)
 
   return (
     <div className="flex flex-col h-full">
@@ -24,7 +28,12 @@ function FeedPanel() {
 
       {/* 피드 스크롤 영역 */}
       <div className="flex-1 overflow-y-auto">
-        <FeedGrid plots={plots} isLoading={loading} />
+        <FeedGrid
+          plots={plots}
+          isLoading={loading}
+          scrappedIds={scrappedIds}
+          onScrap={(plotId) => void toggleScrap(plotId)}
+        />
 
         {/* 더 불러오기 버튼 */}
         {!loading && hasMore && (

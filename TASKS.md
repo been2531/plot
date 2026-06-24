@@ -14,7 +14,7 @@
 ---
 
 ## In Progress
-- [ ] T07: `src/features/feed/hooks/useFeed.ts` — Firestore `plots` 컬렉션 페이지네이션 훅
+_현재 작업 중인 항목 (에이전트가 시작 시 여기로 이동)_
 
 ---
 
@@ -23,7 +23,6 @@
 ### 기반 인프라
 
 ### 피드 기능
-- [ ] T08: 스크랩 기능 — 플롯 카드의 [북마크] 버튼 → Firestore `users/{uid}/scraps` 저장
 
 ### 지도 기능
 - [ ] T09: `src/features/map/components/MapPin.tsx` — 커스텀 핀 마커 컴포넌트 (일반 핀 / 스폰서 핀 구분)
@@ -62,3 +61,5 @@ _에이전트가 새 작업을 발굴하면 여기에 추가_
 - [x] T04: React Router 설정 — `/`, `/explore`, `/profile/:uid`, `/plot/:id` 라우트 구조, Navbar 구현
 - [x] T05: `src/features/feed/components/PlotCard.tsx` — 핀터레스트형 플롯 카드 (커버 이미지, 제목, 작성자, 스크랩 수)
 - [x] T06: `src/features/feed/components/FeedGrid.tsx` — CSS Masonry 그리드 피드 레이아웃
+- [x] T07: `src/features/feed/hooks/useFeed.ts` — Firestore `plots` 컬렉션 페이지네이션 훅
+- [x] T08: 스크랩 기능 — 플롯 카드의 [북마크] 버튼 → Firestore `users/{uid}/scraps` 저장
