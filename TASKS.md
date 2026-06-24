@@ -21,8 +21,6 @@ _현재 작업 중인 항목 (에이전트가 시작 시 여기로 이동)_
 ## Todo
 
 ### 기반 인프라
-- [ ] T03: `src/features/auth/components/LoginModal.tsx` — Google OAuth 로그인 모달 UI
-- [ ] T04: React Router 설정 — `/`, `/explore`, `/profile/:uid`, `/plot/:id` 라우트 구조
 
 ### 피드 기능
 - [ ] T05: `src/features/feed/components/PlotCard.tsx` — 핀터레스트형 플롯 카드 (커버 이미지, 제목, 작성자, 스크랩 수)
@@ -63,3 +61,5 @@ _에이전트가 새 작업을 발굴하면 여기에 추가_
 - [x] T00: Vite+React+TypeScript+Tailwind 스캐폴딩, SplitLayout, MapContainer 뼈대, CLAUDE.md, .env.example
 - [x] T01: `src/services/firebase.ts` — Firebase 앱 초기화 및 Firestore/Auth 인스턴스 export
 - [x] T02: `src/features/auth/hooks/useAuth.ts` — Firebase Auth 상태 구독 훅 (onAuthStateChanged)
+- [x] T03: `src/features/auth/components/LoginModal.tsx` — Google OAuth 로그인 모달 UI
+- [x] T04: React Router 설정 — `/`, `/explore`, `/profile/:uid`, `/plot/:id` 라우트 구조, Navbar 구현
