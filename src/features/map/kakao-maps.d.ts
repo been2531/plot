@@ -6,9 +6,15 @@ export interface KakaoLatLng {
   getLng: () => number
 }
 
+export interface KakaoBounds {
+  getSouthWest: () => KakaoLatLng
+  getNorthEast: () => KakaoLatLng
+}
+
 export interface KakaoMapInstance {
   setCenter: (latlng: KakaoLatLng) => void
   getLevel: () => number
+  getBounds: () => KakaoBounds
 }
 
 export interface KakaoCustomOverlay {

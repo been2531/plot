@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import MapContainer from '@/features/map/components/MapContainer'
 import MapPin from '@/features/map/components/MapPin'
 import RouteLayer from '@/features/map/components/RouteLayer'
@@ -54,8 +54,11 @@ function inputCls() {
 }
 
 export default function CreatePlotPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+
+  // Auth 로딩 완료 후 비로그인이면 홈으로 리다이렉트
+  if (!authLoading && user === null) return <Navigate to="/" replace />
   const [mapInstance, setMapInstance] = useState<KakaoMapInstance | null>(null)
   const [pins, setPins] = useState<Pin[]>([])
 
@@ -119,7 +122,6 @@ export default function CreatePlotPage() {
   }
 
   async function handleSave() {
-    if (!user) { setError('로그인이 필요합니다.'); return }
     if (!title.trim()) { setError('플롯 제목을 입력해주세요.'); return }
     if (pins.length < 2) { setError('핀을 2개 이상 추가해주세요.'); return }
 
@@ -130,8 +132,8 @@ export default function CreatePlotPage() {
       const id = await createPlot({
         title: title.trim(),
         description: description.trim() || undefined,
-        authorId: user.uid,
-        authorName: user.displayName ?? '익명',
+        authorId: user!.uid,
+        authorName: user!.displayName ?? '익명',
         pins,
         tags: tagList,
         isPublic,

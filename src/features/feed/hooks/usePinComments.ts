@@ -26,6 +26,7 @@ interface UsePinCommentsResult {
   comments: PinComment[]
   loading: boolean
   posting: boolean
+  postError: string | null
   postComment: (text: string) => Promise<void>
 }
 
@@ -38,6 +39,7 @@ export function usePinComments(
   const [comments, setComments] = useState<PinComment[]>([])
   const [loading, setLoading] = useState(true)
   const [posting, setPosting] = useState(false)
+  const [postError, setPostError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!plotId || !pinId) return
@@ -55,6 +57,7 @@ export function usePinComments(
   async function postComment(text: string) {
     if (!uid || !text.trim()) return
     setPosting(true)
+    setPostError(null)
     try {
       await addDoc(collection(db, 'plots', plotId, 'pins', pinId, 'comments'), {
         authorId: uid,
@@ -62,10 +65,12 @@ export function usePinComments(
         text: text.trim(),
         createdAt: serverTimestamp(),
       })
+    } catch (err) {
+      setPostError(err instanceof Error ? err.message : '댓글 작성에 실패했습니다.')
     } finally {
       setPosting(false)
     }
   }
 
-  return { comments, loading, posting, postComment }
+  return { comments, loading, posting, postError, postComment }
 }

@@ -35,7 +35,7 @@ function CommentItem({ comment }: { comment: PinComment }) {
 }
 
 export default function PinCommentThread({ plotId, pinId, uid, displayName }: PinCommentThreadProps) {
-  const { comments, loading, posting, postComment } = usePinComments(plotId, pinId, uid, displayName)
+  const { comments, loading, posting, postError, postComment } = usePinComments(plotId, pinId, uid, displayName)
   const [text, setText] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -72,23 +72,28 @@ export default function PinCommentThread({ plotId, pinId, uid, displayName }: Pi
 
       {/* 입력창 */}
       {uid ? (
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 pt-1 border-t border-white/6">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="댓글 달기…"
-            maxLength={200}
-            className="flex-1 bg-transparent text-xs text-white placeholder:text-white/25
-              focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={!text.trim() || posting}
-            className="text-[11px] font-semibold text-plot-clay disabled:text-white/20 transition-colors shrink-0"
-          >
-            {posting ? '…' : '게시'}
-          </button>
-        </form>
+        <div className="pt-1 border-t border-white/6">
+          {postError && (
+            <p className="text-[10px] text-red-400/70 mb-1">{postError}</p>
+          )}
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="댓글 달기…"
+              maxLength={200}
+              className="flex-1 bg-transparent text-xs text-white placeholder:text-white/25
+                focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={!text.trim() || posting}
+              className="text-[11px] font-semibold text-plot-clay disabled:text-white/20 transition-colors shrink-0"
+            >
+              {posting ? '…' : '게시'}
+            </button>
+          </form>
+        </div>
       ) : (
         <p className="text-[10px] text-white/25 text-center pt-1 border-t border-white/6">
           로그인하면 댓글을 달 수 있어요.

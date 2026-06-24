@@ -39,14 +39,13 @@ export async function createPlot(input: CreatePlotInput): Promise<string> {
     updatedAt: serverTimestamp(),
   })
 
-  // pins 서브컬렉션에 각 핀 저장 — setDoc으로 클라이언트 ID 유지하여 pinIds와 일치시킴
+  // pins 서브컬렉션 + 최상위 pins 컬렉션에 동시 기록
+  // 최상위 pins/{pinId}는 useMapPins의 뷰포트 지오 쿼리용 (lat/lng 범위 필터)
   await Promise.all(
-    input.pins.map((pin) =>
-      setDoc(doc(db, 'plots', ref.id, 'pins', pin.id), {
-        ...pin,
-        plotId: ref.id,
-      }),
-    ),
+    input.pins.flatMap((pin) => [
+      setDoc(doc(db, 'plots', ref.id, 'pins', pin.id), { ...pin, plotId: ref.id }),
+      setDoc(doc(db, 'pins', pin.id), { ...pin, plotId: ref.id, isPublic: input.isPublic }),
+    ]),
   )
 
   return ref.id

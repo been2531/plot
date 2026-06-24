@@ -62,9 +62,7 @@ export function useScrap(plotId: string, uid: string | null, initialScrapCount: 
         setScrapCount((c) => c + 1)
       }
     } catch {
-      // 실패 시 낙관적 업데이트 롤백
-      setIsScrapped((prev) => prev)
-      setScrapCount((c) => c)
+      // 상태 변경은 await 성공 후에만 이뤄지므로 catch 시점엔 롤백 불필요
     } finally {
       setLoading(false)
     }
