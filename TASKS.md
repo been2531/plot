@@ -14,15 +14,16 @@
 ---
 
 ## In Progress
-_현재 작업 중인 항목 (에이전트가 시작 시 여기로 이동)_
+- [ ] T01: `src/services/firebase.ts` — Firebase 앱 초기화 및 Firestore/Auth 인스턴스 export
+- [ ] T02: `src/features/auth/hooks/useAuth.ts` — Firebase Auth 상태 구독 훅 (onAuthStateChanged)
 
 ---
 
 ## Todo
 
 ### 기반 인프라
-- [ ] T01: `src/services/firebase.ts` — Firebase 앱 초기화 및 Firestore/Auth 인스턴스 export
-- [ ] T02: `src/features/auth/hooks/useAuth.ts` — Firebase Auth 상태 구독 훅 (onAuthStateChanged)
+- [ ] T03: `src/features/auth/components/LoginModal.tsx` — Google OAuth 로그인 모달 UI
+- [ ] T04: React Router 설정 — `/`, `/explore`, `/profile/:uid`, `/plot/:id` 라우트 구조
 - [ ] T03: `src/features/auth/components/LoginModal.tsx` — Google OAuth 로그인 모달 UI
 - [ ] T04: React Router 설정 — `/`, `/explore`, `/profile/:uid`, `/plot/:id` 라우트 구조
 
