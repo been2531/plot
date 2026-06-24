@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PLOT 전역 기본 스타일 */
+@layer base {
+  html, body, #root {
+    @apply h-full w-full m-0 p-0;
+  }
+
+  body {
+    /* 기본 배경: 딥 블랙 */
+    @apply bg-plot-black text-plot-white;
+    font-family: 'Pretendard', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
