@@ -33,8 +33,8 @@ _현재 작업 중인 항목 (에이전트가 시작 시 여기로 이동)_
 - [x] T12: 플롯 생성 흐름 — 지도에서 장소 클릭 → 핀 추가 → 순서 정렬 → 저장
 
 ### 소셜 기능
-- [ ] T13: `src/features/feed/components/PinCommentThread.tsx` — 핀 하단 스레드형 댓글 UI
-- [ ] T14: 팔로우/팔로워 기능 — Firestore `users/{uid}/following` 컬렉션 구조 및 훅
+- [x] T13: `src/features/feed/components/PinCommentThread.tsx` — 핀 하단 스레드형 댓글 UI
+- [x] T14: 팔로우/팔로워 기능 — Firestore `users/{uid}/following` 컬렉션 구조 및 훅
 - [ ] T15: 프로필 페이지 — 유저 플롯 목록, 팔로워 수, 스크랩 보드
 
 ### 상업화 필드
