@@ -1,0 +1,304 @@
+import { useState, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import MapContainer from '@/features/map/components/MapContainer'
+import MapPin from '@/features/map/components/MapPin'
+import RouteLayer from '@/features/map/components/RouteLayer'
+import { useAuth } from '@/features/auth/hooks/useAuth'
+import { createPlot } from '@/services/plotService'
+import type { Pin } from '@/shared/types'
+import type { KakaoMapInstance } from '@/features/map/kakao-maps'
+
+let pinIdCounter = 0
+function genPinId() {
+  return `local-${++pinIdCounter}-${Date.now()}`
+}
+
+interface PinListItemProps {
+  pin: Pin
+  index: number
+  total: number
+  onMoveUp: () => void
+  onMoveDown: () => void
+  onRemove: () => void
+}
+
+function PinListItem({ pin, index, total, onMoveUp, onMoveDown, onRemove }: PinListItemProps) {
+  return (
+    <div className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-white/8">
+      <span className="w-5 h-5 rounded-full bg-plot-clay/80 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+        {index + 1}
+      </span>
+      <span className="flex-1 text-sm text-white/80 truncate">{pin.name}</span>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onMoveUp}
+          disabled={index === 0}
+          className="w-6 h-6 flex items-center justify-center rounded text-white/40 hover:text-white disabled:opacity-20 transition-colors"
+          aria-label="위로"
+        >
+          ↑
+        </button>
+        <button
+          onClick={onMoveDown}
+          disabled={index === total - 1}
+          className="w-6 h-6 flex items-center justify-center rounded text-white/40 hover:text-white disabled:opacity-20 transition-colors"
+          aria-label="아래로"
+        >
+          ↓
+        </button>
+        <button
+          onClick={onRemove}
+          className="w-6 h-6 flex items-center justify-center rounded text-white/40 hover:text-red-400 transition-colors"
+          aria-label="제거"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function CreatePlotPage() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [mapInstance, setMapInstance] = useState<KakaoMapInstance | null>(null)
+  const [pins, setPins] = useState<Pin[]>([])
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [tags, setTags] = useState('')
+  const [isPublic, setIsPublic] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // 지도 클릭 시 핀 이름 입력을 위한 임시 상태
+  const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null)
+  const [pendingName, setPendingName] = useState('')
+  const pendingInputRef = useRef<HTMLInputElement>(null)
+
+  const handleMapReady = useCallback((map: KakaoMapInstance) => {
+    setMapInstance(map)
+
+    // 지도 클릭 이벤트 등록
+    window.kakao!.maps.event.addListener(map, 'click', (mouseEvent: { latLng: { getLat: () => number; getLng: () => number } }) => {
+      const lat = mouseEvent.latLng.getLat()
+      const lng = mouseEvent.latLng.getLng()
+      setPendingLatLng({ lat, lng })
+      setPendingName('')
+      setTimeout(() => pendingInputRef.current?.focus(), 50)
+    })
+  }, [])
+
+  function confirmPin() {
+    if (!pendingLatLng || !pendingName.trim()) return
+    const newPin: Pin = {
+      id: genPinId(),
+      name: pendingName.trim(),
+      address: '',
+      lat: pendingLatLng.lat,
+      lng: pendingLatLng.lng,
+      isSponsor: false,
+      comments: [],
+    }
+    setPins((prev) => [...prev, newPin])
+    setPendingLatLng(null)
+    setPendingName('')
+  }
+
+  function movePin(index: number, direction: -1 | 1) {
+    const next = [...pins]
+    const target = index + direction
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    setPins(next)
+  }
+
+  function removePin(index: number) {
+    setPins((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  async function handleSave() {
+    if (!user) { setError('로그인이 필요합니다.'); return }
+    if (!title.trim()) { setError('플롯 제목을 입력해주세요.'); return }
+    if (pins.length < 2) { setError('핀을 2개 이상 추가해주세요.'); return }
+
+    setSaving(true)
+    setError(null)
+    try {
+      const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean)
+      const id = await createPlot({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        authorId: user.uid,
+        authorName: user.displayName ?? '익명',
+        pins,
+        tags: tagList,
+        isPublic,
+      })
+      navigate(`/plot/${id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex h-screen pt-14">
+      {/* 왼쪽: 입력 패널 */}
+      <aside className="w-80 shrink-0 flex flex-col border-r border-white/8 bg-plot-black overflow-y-auto">
+        <div className="px-5 py-5 border-b border-white/8">
+          <h1 className="text-sm font-semibold text-white/80">새 플롯 만들기</h1>
+          <p className="text-xs text-white/40 mt-1">지도를 클릭해 핀을 추가하세요.</p>
+        </div>
+
+        <div className="flex-1 px-5 py-4 space-y-4">
+          {/* 제목 */}
+          <div>
+            <label className="text-xs text-white/50 mb-1.5 block">제목 *</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="플롯 제목"
+              maxLength={60}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
+                text-sm text-white placeholder:text-white/25
+                focus:outline-none focus:border-plot-clay/60 transition-colors"
+            />
+          </div>
+
+          {/* 설명 */}
+          <div>
+            <label className="text-xs text-white/50 mb-1.5 block">설명</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="동선에 대한 소개를 적어주세요."
+              rows={3}
+              maxLength={300}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
+                text-sm text-white placeholder:text-white/25 resize-none
+                focus:outline-none focus:border-plot-clay/60 transition-colors"
+            />
+          </div>
+
+          {/* 태그 */}
+          <div>
+            <label className="text-xs text-white/50 mb-1.5 block">태그 (쉼표 구분)</label>
+            <input
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="성수, 카페, 주말"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
+                text-sm text-white placeholder:text-white/25
+                focus:outline-none focus:border-plot-clay/60 transition-colors"
+            />
+          </div>
+
+          {/* 공개 여부 */}
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-xs text-white/50">공개 플롯</span>
+            <button
+              onClick={() => setIsPublic((v) => !v)}
+              className={`w-10 h-5 rounded-full transition-colors relative
+                ${isPublic ? 'bg-plot-clay' : 'bg-white/15'}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform
+                ${isPublic ? 'translate-x-5' : 'translate-x-0.5'}`}
+              />
+            </button>
+          </label>
+
+          {/* 핀 목록 */}
+          <div>
+            <p className="text-xs text-white/50 mb-2">핀 순서 ({pins.length}개)</p>
+            {pins.length === 0 ? (
+              <p className="text-xs text-white/25 text-center py-4">지도를 클릭해 핀을 추가하세요.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {pins.map((pin, i) => (
+                  <PinListItem
+                    key={pin.id}
+                    pin={pin}
+                    index={i}
+                    total={pins.length}
+                    onMoveUp={() => movePin(i, -1)}
+                    onMoveDown={() => movePin(i, 1)}
+                    onRemove={() => removePin(i)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 저장 버튼 */}
+        <div className="px-5 py-4 border-t border-white/8 space-y-2">
+          {error && <p className="text-xs text-red-400/80 text-center">{error}</p>}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-2.5 rounded-xl bg-plot-clay text-white text-sm font-semibold
+              hover:bg-plot-clay/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {saving ? '저장 중…' : '플롯 저장'}
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            className="w-full py-2 rounded-xl text-white/40 text-xs hover:text-white/60 transition-colors"
+          >
+            취소
+          </button>
+        </div>
+      </aside>
+
+      {/* 오른쪽: 지도 */}
+      <div className="flex-1 relative">
+        <MapContainer onMapReady={handleMapReady} />
+
+        {/* 핀 렌더링 */}
+        {mapInstance && pins.map((pin, i) => (
+          <MapPin
+            key={pin.id}
+            pin={pin}
+            map={mapInstance}
+            order={i + 1}
+          />
+        ))}
+
+        {/* 동선 */}
+        {mapInstance && pins.length >= 2 && (
+          <RouteLayer pins={pins} map={mapInstance} />
+        )}
+
+        {/* 클릭 후 핀 이름 입력 팝업 */}
+        {pendingLatLng && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50
+            flex items-center gap-2 bg-plot-black/95 border border-white/15
+            rounded-2xl px-4 py-3 shadow-2xl backdrop-blur-md w-72"
+          >
+            <input
+              ref={pendingInputRef}
+              value={pendingName}
+              onChange={(e) => setPendingName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') confirmPin() }}
+              placeholder="장소 이름 입력"
+              className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30
+                focus:outline-none"
+            />
+            <button
+              onClick={confirmPin}
+              disabled={!pendingName.trim()}
+              className="text-xs text-plot-clay font-semibold disabled:text-white/25 transition-colors"
+            >
+              추가
+            </button>
+            <button
+              onClick={() => setPendingLatLng(null)}
+              className="text-xs text-white/30 hover:text-white/60 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

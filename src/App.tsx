@@ -4,6 +4,7 @@ import HomePage from '@/pages/HomePage'
 import ExplorePage from '@/pages/ExplorePage'
 import ProfilePage from '@/pages/ProfilePage'
 import PlotDetailPage from '@/pages/PlotDetailPage'
+import CreatePlotPage from '@/pages/CreatePlotPage'
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/profile/:uid" element={<ProfilePage />} />
         <Route path="/plot/:id" element={<PlotDetailPage />} />
+        <Route path="/create" element={<CreatePlotPage />} />
       </Routes>
     </>
   )

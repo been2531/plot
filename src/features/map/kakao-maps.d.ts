@@ -15,6 +15,10 @@ export interface KakaoCustomOverlay {
   setMap: (map: KakaoMapInstance | null) => void
 }
 
+export interface KakaoMouseEvent {
+  latLng: KakaoLatLng
+}
+
 export interface KakaoPolyline {
   setMap: (map: KakaoMapInstance | null) => void
 }
@@ -24,6 +28,10 @@ declare global {
     kakao?: {
       maps: {
         load: (callback: () => void) => void
+        event: {
+          addListener: (target: unknown, type: string, handler: (e: KakaoMouseEvent) => void) => void
+          removeListener: (target: unknown, type: string, handler: (e: KakaoMouseEvent) => void) => void
+        }
         Map: new (container: HTMLElement, options: {
           center: KakaoLatLng
           level: number
