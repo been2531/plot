@@ -23,8 +23,6 @@ _현재 작업 중인 항목 (에이전트가 시작 시 여기로 이동)_
 ### 기반 인프라
 - [ ] T03: `src/features/auth/components/LoginModal.tsx` — Google OAuth 로그인 모달 UI
 - [ ] T04: React Router 설정 — `/`, `/explore`, `/profile/:uid`, `/plot/:id` 라우트 구조
-- [ ] T03: `src/features/auth/components/LoginModal.tsx` — Google OAuth 로그인 모달 UI
-- [ ] T04: React Router 설정 — `/`, `/explore`, `/profile/:uid`, `/plot/:id` 라우트 구조
 
 ### 피드 기능
 - [ ] T05: `src/features/feed/components/PlotCard.tsx` — 핀터레스트형 플롯 카드 (커버 이미지, 제목, 작성자, 스크랩 수)
