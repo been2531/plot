@@ -35,6 +35,13 @@ export default function Navbar() {
           {user ? (
             /* 로그인 상태 */
             <div className="flex items-center gap-3">
+              <Link
+                to="/create"
+                className="text-xs px-3 py-1.5 rounded-full bg-plot-clay text-white
+                  hover:bg-plot-clay/80 transition-colors font-medium"
+              >
+                + 만들기
+              </Link>
               <Link to={`/profile/${user.uid}`}>
                 {user.photoURL ? (
                   <img

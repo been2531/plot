@@ -1,6 +1,7 @@
 import {
   collection,
   addDoc,
+  setDoc,
   serverTimestamp,
   doc,
   updateDoc,
@@ -38,10 +39,10 @@ export async function createPlot(input: CreatePlotInput): Promise<string> {
     updatedAt: serverTimestamp(),
   })
 
-  // pins 서브컬렉션에 각 핀 저장
+  // pins 서브컬렉션에 각 핀 저장 — setDoc으로 클라이언트 ID 유지하여 pinIds와 일치시킴
   await Promise.all(
     input.pins.map((pin) =>
-      addDoc(collection(db, 'plots', ref.id, 'pins'), {
+      setDoc(doc(db, 'plots', ref.id, 'pins', pin.id), {
         ...pin,
         plotId: ref.id,
       }),

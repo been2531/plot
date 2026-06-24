@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { doc, getDoc, Timestamp } from 'firebase/firestore'
+import { doc, getDoc, getDocs, collection, Timestamp } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useFollow } from '@/features/auth/hooks/useFollow'
@@ -9,17 +9,42 @@ import PinCommentThread from '@/features/feed/components/PinCommentThread'
 import type { Plot, Pin } from '@/shared/types'
 
 async function fetchPlot(id: string): Promise<Plot | null> {
-  const snap = await getDoc(doc(db, 'plots', id))
+  const [snap, pinsSnap] = await Promise.all([
+    getDoc(doc(db, 'plots', id)),
+    getDocs(collection(db, 'plots', id, 'pins')),
+  ])
   if (!snap.exists()) return null
   const d = snap.data()
+  const pinIds: string[] = d.pinIds ?? []
+
+  const pinsMap = new Map<string, Pin>()
+  pinsSnap.docs.forEach((pinDoc) => {
+    const p = pinDoc.data()
+    pinsMap.set(pinDoc.id, {
+      id: pinDoc.id,
+      name: p.name ?? '',
+      address: p.address ?? '',
+      lat: p.lat ?? 0,
+      lng: p.lng ?? 0,
+      imageUrl: typeof p.imageUrl === 'string' ? p.imageUrl : undefined,
+      isSponsor: p.isSponsor ?? false,
+      sponsorLinkUrl: typeof p.sponsorLinkUrl === 'string' ? p.sponsorLinkUrl : undefined,
+      affiliateUrl: typeof p.affiliateUrl === 'string' ? p.affiliateUrl : undefined,
+      comments: [],
+    })
+  })
+
+  // pinIds 순서대로 핀 정렬
+  const pins = pinIds.map((pid) => pinsMap.get(pid)).filter((p): p is Pin => p !== undefined)
+
   return {
     id: snap.id,
     title: d.title ?? '',
     description: d.description,
     authorId: d.authorId ?? '',
     authorName: d.authorName ?? '',
-    pins: [],
-    pinIds: d.pinIds ?? [],
+    pins,
+    pinIds,
     tags: d.tags ?? [],
     coverImageUrl: d.coverImageUrl,
     creatorSupportUrl: d.creatorSupportUrl,
