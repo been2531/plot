@@ -5,6 +5,7 @@ import MapPin from '@/features/map/components/MapPin'
 import RouteLayer from '@/features/map/components/RouteLayer'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { createPlot } from '@/services/plotService'
+import { uploadImage, validateImageFile, isR2Configured } from '@/services/r2'
 import type { Pin } from '@/shared/types'
 import type { KakaoMapInstance } from '@/features/map/kakao-maps'
 
@@ -49,16 +50,12 @@ function PinListItem({ pin, index, total, onMoveUp, onMoveDown, onRemove }: PinL
   )
 }
 
-function inputCls() {
-  return 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-plot-clay/60 transition-colors'
-}
+const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-plot-clay/60 transition-colors'
 
 export default function CreatePlotPage() {
   const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
-  // Auth 로딩 완료 후 비로그인이면 홈으로 리다이렉트
-  if (!authLoading && user === null) return <Navigate to="/" replace />
   const [mapInstance, setMapInstance] = useState<KakaoMapInstance | null>(null)
   const [pins, setPins] = useState<Pin[]>([])
 
@@ -67,8 +64,12 @@ export default function CreatePlotPage() {
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState('')
   const [isPublic, setIsPublic] = useState(true)
-  // T16: 크리에이터 후원 링크
   const [creatorSupportUrl, setCreatorSupportUrl] = useState('')
+
+  // 커버 이미지
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -76,9 +77,11 @@ export default function CreatePlotPage() {
   // 지도 클릭 → 핀 추가 팝업 상태
   const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null)
   const [pendingName, setPendingName] = useState('')
-  // T18: 핀별 어필리에이트 링크
   const [pendingAffiliateUrl, setPendingAffiliateUrl] = useState('')
   const pendingInputRef = useRef<HTMLInputElement>(null)
+
+  // 훅을 모두 호출한 뒤 조건부 렌더링
+  if (!authLoading && user === null) return <Navigate to="/" replace />
 
   const handleMapReady = useCallback((map: KakaoMapInstance) => {
     setMapInstance(map)
@@ -90,6 +93,23 @@ export default function CreatePlotPage() {
     })
   }, [])
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const err = validateImageFile(file)
+    if (err) { setError(err); return }
+    setCoverFile(file)
+    setCoverPreview(URL.createObjectURL(file))
+    setError(null)
+  }
+
+  function clearCoverImage() {
+    setCoverFile(null)
+    if (coverPreview) URL.revokeObjectURL(coverPreview)
+    setCoverPreview(null)
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }
+
   function confirmPin() {
     if (!pendingLatLng || !pendingName.trim()) return
     const newPin: Pin = {
@@ -99,7 +119,6 @@ export default function CreatePlotPage() {
       lat: pendingLatLng.lat,
       lng: pendingLatLng.lng,
       isSponsor: false,
-      // T18: 어필리에이트 링크 저장
       affiliateUrl: pendingAffiliateUrl.trim() || undefined,
       comments: [],
     }
@@ -128,6 +147,11 @@ export default function CreatePlotPage() {
     setSaving(true)
     setError(null)
     try {
+      let coverImageUrl: string | undefined
+      if (coverFile) {
+        coverImageUrl = await uploadImage(coverFile)
+      }
+
       const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean)
       const id = await createPlot({
         title: title.trim(),
@@ -137,7 +161,7 @@ export default function CreatePlotPage() {
         pins,
         tags: tagList,
         isPublic,
-        // T16: 후원 링크 전달
+        coverImageUrl,
         creatorSupportUrl: creatorSupportUrl.trim() || undefined,
       })
       navigate(`/plot/${id}`)
@@ -157,11 +181,46 @@ export default function CreatePlotPage() {
         </div>
 
         <div className="flex-1 px-5 py-4 space-y-4">
+          {/* 커버 이미지 */}
+          {isR2Configured() && (
+            <div>
+              <label className="text-xs text-white/50 mb-1.5 block">커버 이미지</label>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              {coverPreview ? (
+                <div className="relative rounded-xl overflow-hidden">
+                  <img src={coverPreview} alt="커버 미리보기" className="w-full h-32 object-cover" />
+                  <button
+                    onClick={clearCoverImage}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60
+                      flex items-center justify-center text-white/70 hover:text-white text-xs transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  className="w-full h-20 border border-dashed border-white/15 rounded-xl
+                    flex items-center justify-center text-xs text-white/30
+                    hover:border-white/30 hover:text-white/50 transition-colors"
+                >
+                  + 이미지 선택
+                </button>
+              )}
+            </div>
+          )}
+
           {/* 제목 */}
           <div>
             <label className="text-xs text-white/50 mb-1.5 block">제목 *</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder="플롯 제목" maxLength={60} className={inputCls()} />
+              placeholder="플롯 제목" maxLength={60} className={inputCls} />
           </div>
 
           {/* 설명 */}
@@ -169,23 +228,23 @@ export default function CreatePlotPage() {
             <label className="text-xs text-white/50 mb-1.5 block">설명</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)}
               placeholder="동선에 대한 소개를 적어주세요." rows={3} maxLength={300}
-              className={`${inputCls()} resize-none`} />
+              className={`${inputCls} resize-none`} />
           </div>
 
           {/* 태그 */}
           <div>
             <label className="text-xs text-white/50 mb-1.5 block">태그 (쉼표 구분)</label>
             <input value={tags} onChange={(e) => setTags(e.target.value)}
-              placeholder="성수, 카페, 주말" className={inputCls()} />
+              placeholder="성수, 카페, 주말" className={inputCls} />
           </div>
 
-          {/* T16: 크리에이터 후원 링크 */}
+          {/* 크리에이터 후원 링크 */}
           <div>
             <label className="text-xs text-white/50 mb-1.5 block">
               후원 링크 <span className="text-white/25">(토스, 포스타입 등)</span>
             </label>
             <input value={creatorSupportUrl} onChange={(e) => setCreatorSupportUrl(e.target.value)}
-              placeholder="https://toss.me/…" className={inputCls()} />
+              placeholder="https://toss.me/…" className={inputCls} />
           </div>
 
           {/* 공개 여부 */}
@@ -244,14 +303,13 @@ export default function CreatePlotPage() {
           <RouteLayer pins={pins} map={mapInstance} />
         )}
 
-        {/* 핀 추가 팝업 — T17·T18: 어필리에이트 링크 입력 포함 */}
+        {/* 핀 추가 팝업 */}
         {pendingLatLng && (
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 w-80
             bg-plot-black/95 border border-white/15 rounded-2xl px-4 py-4
             shadow-2xl backdrop-blur-md space-y-2.5">
             <p className="text-[10px] text-white/35 font-medium uppercase tracking-wider">장소 추가</p>
 
-            {/* 장소 이름 */}
             <input ref={pendingInputRef} value={pendingName}
               onChange={(e) => setPendingName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') confirmPin() }}
@@ -259,7 +317,6 @@ export default function CreatePlotPage() {
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
                 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-plot-clay/40 transition-colors" />
 
-            {/* T18: 어필리에이트(예약) 링크 */}
             <input value={pendingAffiliateUrl}
               onChange={(e) => setPendingAffiliateUrl(e.target.value)}
               placeholder="예약 링크 (아고다, 클룩 등) — 선택"
