@@ -17,6 +17,8 @@ export interface CreatePlotInput {
   tags: string[]
   coverImageUrl?: string
   isPublic: boolean
+  /** T16: 크리에이터 외부 후원 링크 */
+  creatorSupportUrl?: string
 }
 
 /** plots 컬렉션에 새 플롯을 생성하고 doc ID를 반환 */
@@ -29,6 +31,7 @@ export async function createPlot(input: CreatePlotInput): Promise<string> {
     pinIds: input.pins.map((p) => p.id),
     tags: input.tags,
     coverImageUrl: input.coverImageUrl ?? null,
+    creatorSupportUrl: input.creatorSupportUrl ?? null,
     isPublic: input.isPublic,
     scrapCount: 0,
     createdAt: serverTimestamp(),

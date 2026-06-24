@@ -28,34 +28,29 @@ function PinListItem({ pin, index, total, onMoveUp, onMoveDown, onRemove }: PinL
       <span className="w-5 h-5 rounded-full bg-plot-clay/80 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
         {index + 1}
       </span>
-      <span className="flex-1 text-sm text-white/80 truncate">{pin.name}</span>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={onMoveUp}
-          disabled={index === 0}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-white/80 truncate">{pin.name}</p>
+        {pin.affiliateUrl && (
+          <p className="text-[10px] text-plot-clay/60 truncate">예약링크 있음</p>
+        )}
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <button onClick={onMoveUp} disabled={index === 0}
           className="w-6 h-6 flex items-center justify-center rounded text-white/40 hover:text-white disabled:opacity-20 transition-colors"
-          aria-label="위로"
-        >
-          ↑
-        </button>
-        <button
-          onClick={onMoveDown}
-          disabled={index === total - 1}
+          aria-label="위로">↑</button>
+        <button onClick={onMoveDown} disabled={index === total - 1}
           className="w-6 h-6 flex items-center justify-center rounded text-white/40 hover:text-white disabled:opacity-20 transition-colors"
-          aria-label="아래로"
-        >
-          ↓
-        </button>
-        <button
-          onClick={onRemove}
+          aria-label="아래로">↓</button>
+        <button onClick={onRemove}
           className="w-6 h-6 flex items-center justify-center rounded text-white/40 hover:text-red-400 transition-colors"
-          aria-label="제거"
-        >
-          ✕
-        </button>
+          aria-label="제거">✕</button>
       </div>
     </div>
   )
+}
+
+function inputCls() {
+  return 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-plot-clay/60 transition-colors'
 }
 
 export default function CreatePlotPage() {
@@ -63,26 +58,31 @@ export default function CreatePlotPage() {
   const navigate = useNavigate()
   const [mapInstance, setMapInstance] = useState<KakaoMapInstance | null>(null)
   const [pins, setPins] = useState<Pin[]>([])
+
+  // 플롯 메타
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState('')
   const [isPublic, setIsPublic] = useState(true)
+  // T16: 크리에이터 후원 링크
+  const [creatorSupportUrl, setCreatorSupportUrl] = useState('')
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // 지도 클릭 시 핀 이름 입력을 위한 임시 상태
+
+  // 지도 클릭 → 핀 추가 팝업 상태
   const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null)
   const [pendingName, setPendingName] = useState('')
+  // T18: 핀별 어필리에이트 링크
+  const [pendingAffiliateUrl, setPendingAffiliateUrl] = useState('')
   const pendingInputRef = useRef<HTMLInputElement>(null)
 
   const handleMapReady = useCallback((map: KakaoMapInstance) => {
     setMapInstance(map)
-
-    // 지도 클릭 이벤트 등록
     window.kakao!.maps.event.addListener(map, 'click', (mouseEvent: { latLng: { getLat: () => number; getLng: () => number } }) => {
-      const lat = mouseEvent.latLng.getLat()
-      const lng = mouseEvent.latLng.getLng()
-      setPendingLatLng({ lat, lng })
+      setPendingLatLng({ lat: mouseEvent.latLng.getLat(), lng: mouseEvent.latLng.getLng() })
       setPendingName('')
+      setPendingAffiliateUrl('')
       setTimeout(() => pendingInputRef.current?.focus(), 50)
     })
   }, [])
@@ -96,11 +96,14 @@ export default function CreatePlotPage() {
       lat: pendingLatLng.lat,
       lng: pendingLatLng.lng,
       isSponsor: false,
+      // T18: 어필리에이트 링크 저장
+      affiliateUrl: pendingAffiliateUrl.trim() || undefined,
       comments: [],
     }
     setPins((prev) => [...prev, newPin])
     setPendingLatLng(null)
     setPendingName('')
+    setPendingAffiliateUrl('')
   }
 
   function movePin(index: number, direction: -1 | 1) {
@@ -132,6 +135,8 @@ export default function CreatePlotPage() {
         pins,
         tags: tagList,
         isPublic,
+        // T16: 후원 링크 전달
+        creatorSupportUrl: creatorSupportUrl.trim() || undefined,
       })
       navigate(`/plot/${id}`)
     } catch (err) {
@@ -153,43 +158,32 @@ export default function CreatePlotPage() {
           {/* 제목 */}
           <div>
             <label className="text-xs text-white/50 mb-1.5 block">제목 *</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="플롯 제목"
-              maxLength={60}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
-                text-sm text-white placeholder:text-white/25
-                focus:outline-none focus:border-plot-clay/60 transition-colors"
-            />
+            <input value={title} onChange={(e) => setTitle(e.target.value)}
+              placeholder="플롯 제목" maxLength={60} className={inputCls()} />
           </div>
 
           {/* 설명 */}
           <div>
             <label className="text-xs text-white/50 mb-1.5 block">설명</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="동선에 대한 소개를 적어주세요."
-              rows={3}
-              maxLength={300}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
-                text-sm text-white placeholder:text-white/25 resize-none
-                focus:outline-none focus:border-plot-clay/60 transition-colors"
-            />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+              placeholder="동선에 대한 소개를 적어주세요." rows={3} maxLength={300}
+              className={`${inputCls()} resize-none`} />
           </div>
 
           {/* 태그 */}
           <div>
             <label className="text-xs text-white/50 mb-1.5 block">태그 (쉼표 구분)</label>
-            <input
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="성수, 카페, 주말"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
-                text-sm text-white placeholder:text-white/25
-                focus:outline-none focus:border-plot-clay/60 transition-colors"
-            />
+            <input value={tags} onChange={(e) => setTags(e.target.value)}
+              placeholder="성수, 카페, 주말" className={inputCls()} />
+          </div>
+
+          {/* T16: 크리에이터 후원 링크 */}
+          <div>
+            <label className="text-xs text-white/50 mb-1.5 block">
+              후원 링크 <span className="text-white/25">(토스, 포스타입 등)</span>
+            </label>
+            <input value={creatorSupportUrl} onChange={(e) => setCreatorSupportUrl(e.target.value)}
+              placeholder="https://toss.me/…" className={inputCls()} />
           </div>
 
           {/* 공개 여부 */}
@@ -197,12 +191,9 @@ export default function CreatePlotPage() {
             <span className="text-xs text-white/50">공개 플롯</span>
             <button
               onClick={() => setIsPublic((v) => !v)}
-              className={`w-10 h-5 rounded-full transition-colors relative
-                ${isPublic ? 'bg-plot-clay' : 'bg-white/15'}`}
+              className={`w-10 h-5 rounded-full transition-colors relative ${isPublic ? 'bg-plot-clay' : 'bg-white/15'}`}
             >
-              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform
-                ${isPublic ? 'translate-x-5' : 'translate-x-0.5'}`}
-              />
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isPublic ? 'translate-x-5' : 'translate-x-0.5'}`} />
             </button>
           </label>
 
@@ -214,15 +205,10 @@ export default function CreatePlotPage() {
             ) : (
               <div className="space-y-1.5">
                 {pins.map((pin, i) => (
-                  <PinListItem
-                    key={pin.id}
-                    pin={pin}
-                    index={i}
-                    total={pins.length}
+                  <PinListItem key={pin.id} pin={pin} index={i} total={pins.length}
                     onMoveUp={() => movePin(i, -1)}
                     onMoveDown={() => movePin(i, 1)}
-                    onRemove={() => removePin(i)}
-                  />
+                    onRemove={() => removePin(i)} />
                 ))}
               </div>
             )}
@@ -232,18 +218,13 @@ export default function CreatePlotPage() {
         {/* 저장 버튼 */}
         <div className="px-5 py-4 border-t border-white/8 space-y-2">
           {error && <p className="text-xs text-red-400/80 text-center">{error}</p>}
-          <button
-            onClick={handleSave}
-            disabled={saving}
+          <button onClick={handleSave} disabled={saving}
             className="w-full py-2.5 rounded-xl bg-plot-clay text-white text-sm font-semibold
-              hover:bg-plot-clay/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
+              hover:bg-plot-clay/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
             {saving ? '저장 중…' : '플롯 저장'}
           </button>
-          <button
-            onClick={() => navigate(-1)}
-            className="w-full py-2 rounded-xl text-white/40 text-xs hover:text-white/60 transition-colors"
-          >
+          <button onClick={() => navigate(-1)}
+            className="w-full py-2 rounded-xl text-white/40 text-xs hover:text-white/60 transition-colors">
             취소
           </button>
         </div>
@@ -253,49 +234,47 @@ export default function CreatePlotPage() {
       <div className="flex-1 relative">
         <MapContainer onMapReady={handleMapReady} />
 
-        {/* 핀 렌더링 */}
         {mapInstance && pins.map((pin, i) => (
-          <MapPin
-            key={pin.id}
-            pin={pin}
-            map={mapInstance}
-            order={i + 1}
-          />
+          <MapPin key={pin.id} pin={pin} map={mapInstance} order={i + 1} />
         ))}
 
-        {/* 동선 */}
         {mapInstance && pins.length >= 2 && (
           <RouteLayer pins={pins} map={mapInstance} />
         )}
 
-        {/* 클릭 후 핀 이름 입력 팝업 */}
+        {/* 핀 추가 팝업 — T17·T18: 어필리에이트 링크 입력 포함 */}
         {pendingLatLng && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50
-            flex items-center gap-2 bg-plot-black/95 border border-white/15
-            rounded-2xl px-4 py-3 shadow-2xl backdrop-blur-md w-72"
-          >
-            <input
-              ref={pendingInputRef}
-              value={pendingName}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 w-80
+            bg-plot-black/95 border border-white/15 rounded-2xl px-4 py-4
+            shadow-2xl backdrop-blur-md space-y-2.5">
+            <p className="text-[10px] text-white/35 font-medium uppercase tracking-wider">장소 추가</p>
+
+            {/* 장소 이름 */}
+            <input ref={pendingInputRef} value={pendingName}
               onChange={(e) => setPendingName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') confirmPin() }}
-              placeholder="장소 이름 입력"
-              className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30
-                focus:outline-none"
-            />
-            <button
-              onClick={confirmPin}
-              disabled={!pendingName.trim()}
-              className="text-xs text-plot-clay font-semibold disabled:text-white/25 transition-colors"
-            >
-              추가
-            </button>
-            <button
-              onClick={() => setPendingLatLng(null)}
-              className="text-xs text-white/30 hover:text-white/60 transition-colors"
-            >
-              ✕
-            </button>
+              placeholder="장소 이름 *"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
+                text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-plot-clay/40 transition-colors" />
+
+            {/* T18: 어필리에이트(예약) 링크 */}
+            <input value={pendingAffiliateUrl}
+              onChange={(e) => setPendingAffiliateUrl(e.target.value)}
+              placeholder="예약 링크 (아고다, 클룩 등) — 선택"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
+                text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-plot-clay/40 transition-colors" />
+
+            <div className="flex justify-end gap-2 pt-0.5">
+              <button onClick={() => setPendingLatLng(null)}
+                className="text-xs text-white/30 hover:text-white/60 transition-colors px-2">
+                취소
+              </button>
+              <button onClick={confirmPin} disabled={!pendingName.trim()}
+                className="text-xs text-white font-semibold bg-plot-clay/80 hover:bg-plot-clay
+                  disabled:opacity-30 rounded-lg px-4 py-1.5 transition-colors">
+                추가
+              </button>
+            </div>
           </div>
         )}
       </div>
