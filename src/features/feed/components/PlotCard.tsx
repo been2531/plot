@@ -1,28 +1,20 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Plot } from '@/shared/types'
+import { useScrap } from '@/features/feed/hooks/useScrap'
 
 interface PlotCardProps {
   plot: Plot
-  /** 북마크(스크랩) 버튼 클릭 핸들러 — T08에서 Firestore 연동 예정 */
-  onScrap?: (plotId: string) => void
-  /** 현재 유저가 이미 스크랩한 상태인지 */
-  isScrapped?: boolean
+  /** 현재 로그인 유저 uid — null이면 비로그인 */
+  uid?: string | null
 }
 
-export default function PlotCard({ plot, onScrap, isScrapped = false }: PlotCardProps) {
-  const [scrapped, setScrapped] = useState(isScrapped)
-  const [scrapCount, setScrapCount] = useState(plot.scrapCount)
+export default function PlotCard({ plot, uid = null }: PlotCardProps) {
+  const { isScrapped, scrapCount, toggle } = useScrap(plot.id, uid, plot.scrapCount)
 
   function handleScrap(e: React.MouseEvent) {
-    // 카드 링크 이동 막기
     e.preventDefault()
     e.stopPropagation()
-
-    const next = !scrapped
-    setScrapped(next)
-    setScrapCount((c) => c + (next ? 1 : -1))
-    onScrap?.(plot.id)
+    toggle()
   }
 
   return (
@@ -50,15 +42,15 @@ export default function PlotCard({ plot, onScrap, isScrapped = false }: PlotCard
         {/* 스크랩(북마크) 버튼 — 이미지 우측 하단 */}
         <button
           onClick={handleScrap}
-          aria-label={scrapped ? '스크랩 취소' : '스크랩'}
+          aria-label={isScrapped ? '스크랩 취소' : '스크랩'}
           className={`absolute bottom-2 right-2 w-8 h-8 rounded-full flex items-center justify-center
             backdrop-blur-sm transition-all duration-150
-            ${scrapped
+            ${isScrapped
               ? 'bg-plot-clay text-white'
               : 'bg-black/40 text-white/60 opacity-0 group-hover:opacity-100'
             }`}
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill={scrapped ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill={isScrapped ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
         </button>
