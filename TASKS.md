@@ -27,8 +27,8 @@ _현재 작업 중인 항목 (에이전트가 시작 시 여기로 이동)_
 - [x] T08: 스크랩 기능 — 플롯 카드의 [북마크] 버튼 → Firestore `users/{uid}/scraps` 저장
 
 ### 지도 기능
-- [ ] T09: `src/features/map/components/MapPin.tsx` — 커스텀 핀 마커 컴포넌트 (일반 핀 / 스폰서 핀 구분)
-- [ ] T10: `src/features/map/components/RouteLayer.tsx` — 핀 간 연결선(동선) 렌더링
+- [x] T09: `src/features/map/components/MapPin.tsx` — 커스텀 핀 마커 컴포넌트 (일반 핀 / 스폰서 핀 구분)
+- [x] T10: `src/features/map/components/RouteLayer.tsx` — 핀 간 연결선(동선) 렌더링
 - [ ] T11: `src/features/map/hooks/useMapPins.ts` — 지도 뷰포트 내 핀 데이터 Firestore 쿼리 훅
 - [ ] T12: 플롯 생성 흐름 — 지도에서 장소 클릭 → 핀 추가 → 순서 정렬 → 저장
 
