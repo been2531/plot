@@ -1,82 +1,80 @@
-// 유저의 스크랩 목록을 Firestore에서 구독하고 토글 기능을 제공하는 훅
 import { useState, useEffect, useCallback } from 'react'
 import {
-  collection,
-  onSnapshot,
   doc,
-  runTransaction,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  increment,
+  updateDoc,
   serverTimestamp,
+  collection,
+  getDocs,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 
-interface UseScrapReturn {
-  /** 현재 로그인 유저가 스크랩한 플롯 ID 집합 */
-  scrappedIds: Set<string>
-  /** 스크랩 상태를 토글하고 scrapCount를 원자적으로 갱신 */
-  toggleScrap: (plotId: string) => Promise<void>
+interface UseScrapResult {
+  isScrapped: boolean
+  scrapCount: number
+  toggle: () => Promise<void>
   loading: boolean
 }
 
-export function useScrap(uid: string | null): UseScrapReturn {
-  const [scrappedIds, setScrappedIds] = useState<Set<string>>(new Set())
+/**
+ * 특정 플롯에 대한 스크랩 상태를 관리하는 훅.
+ * uid가 없으면 비로그인 상태로 간주하여 UI만 표시(토글 불가).
+ */
+export function useScrap(plotId: string, uid: string | null, initialScrapCount: number): UseScrapResult {
+  const [isScrapped, setIsScrapped] = useState(false)
+  const [scrapCount, setScrapCount] = useState(initialScrapCount)
   const [loading, setLoading] = useState(false)
 
-  // 유저 스크랩 목록 실시간 구독
+  // 로그인 상태가 되면 실제 스크랩 여부 확인
   useEffect(() => {
     if (!uid) {
-      setScrappedIds(new Set())
+      setIsScrapped(false)
       return
     }
+    const scrapRef = doc(db, 'users', uid, 'scraps', plotId)
+    getDoc(scrapRef).then((snap) => {
+      setIsScrapped(snap.exists())
+    }).catch(() => {
+      // 조회 실패 시 기본값 유지
+    })
+  }, [uid, plotId])
 
+  const toggle = useCallback(async () => {
+    if (!uid || loading) return
     setLoading(true)
-    const scrapsRef = collection(db, 'users', uid, 'scraps')
-    const unsubscribe = onSnapshot(
-      scrapsRef,
-      (snapshot) => {
-        const ids = new Set(snapshot.docs.map((d) => d.id))
-        setScrappedIds(ids)
-        setLoading(false)
-      },
-      () => {
-        // 권한 오류 등은 조용히 처리 — 빈 집합 유지
-        setLoading(false)
-      },
-    )
 
-    return unsubscribe
-  }, [uid])
+    const scrapRef = doc(db, 'users', uid, 'scraps', plotId)
+    const plotRef = doc(db, 'plots', plotId)
 
-  const toggleScrap = useCallback(
-    async (plotId: string) => {
-      if (!uid) return
+    try {
+      if (isScrapped) {
+        await deleteDoc(scrapRef)
+        await updateDoc(plotRef, { scrapCount: increment(-1) })
+        setIsScrapped(false)
+        setScrapCount((c) => Math.max(0, c - 1))
+      } else {
+        await setDoc(scrapRef, { plotId, scrappedAt: serverTimestamp() })
+        await updateDoc(plotRef, { scrapCount: increment(1) })
+        setIsScrapped(true)
+        setScrapCount((c) => c + 1)
+      }
+    } catch {
+      // 실패 시 낙관적 업데이트 롤백
+      setIsScrapped((prev) => prev)
+      setScrapCount((c) => c)
+    } finally {
+      setLoading(false)
+    }
+  }, [uid, plotId, isScrapped, loading])
 
-      const scrapDocRef = doc(db, 'users', uid, 'scraps', plotId)
-      const plotDocRef = doc(db, 'plots', plotId)
-      const isScrapped = scrappedIds.has(plotId)
+  return { isScrapped, scrapCount, toggle, loading }
+}
 
-      // Firestore 트랜잭션으로 스크랩 문서와 플롯 카운트를 원자적으로 갱신
-      await runTransaction(db, async (tx) => {
-        const plotSnap = await tx.get(plotDocRef)
-        const currentCount =
-          typeof plotSnap.data()?.['scrapCount'] === 'number'
-            ? (plotSnap.data()?.['scrapCount'] as number)
-            : 0
-
-        if (isScrapped) {
-          tx.delete(scrapDocRef)
-          if (plotSnap.exists()) {
-            tx.update(plotDocRef, { scrapCount: Math.max(0, currentCount - 1) })
-          }
-        } else {
-          tx.set(scrapDocRef, { scrappedAt: serverTimestamp() })
-          if (plotSnap.exists()) {
-            tx.update(plotDocRef, { scrapCount: currentCount + 1 })
-          }
-        }
-      })
-    },
-    [uid, scrappedIds],
-  )
-
-  return { scrappedIds, toggleScrap, loading }
+/** 유저가 스크랩한 모든 plotId 목록을 가져오는 유틸 */
+export async function fetchScrapIds(uid: string): Promise<string[]> {
+  const snap = await getDocs(collection(db, 'users', uid, 'scraps'))
+  return snap.docs.map((d) => d.id)
 }

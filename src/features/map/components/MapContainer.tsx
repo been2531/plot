@@ -1,30 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_LEVEL } from '@/shared/constants'
-
-// Kakao Map SDK가 window에 붙이는 전역 객체 타입 선언
-// 실제 SDK 로드 전까지는 undefined이므로 optional로 처리
-declare global {
-  interface Window {
-    kakao?: {
-      maps: {
-        load: (callback: () => void) => void
-        Map: new (container: HTMLElement, options: KakaoMapOptions) => KakaoMap
-        LatLng: new (lat: number, lng: number) => unknown
-      }
-    }
-  }
-}
-
-interface KakaoMapOptions {
-  center: unknown
-  level: number
-}
-
-// SDK가 노출하는 Map 인스턴스 타입 (필요한 메서드만 최소 선언)
-interface KakaoMap {
-  setCenter: (latlng: unknown) => void
-  getLevel: () => number
-}
+import type { KakaoMapInstance } from '@/features/map/kakao-maps'
 
 interface MapContainerProps {
   /** 지도 중심 좌표 — 미입력 시 서울 시청 기본값 */
@@ -32,6 +8,8 @@ interface MapContainerProps {
   /** Kakao Map 줌 레벨 (1~14) */
   zoomLevel?: number
   className?: string
+  /** 지도 인스턴스 준비 완료 시 호출 — MapPin / RouteLayer에 전달용 */
+  onMapReady?: (map: KakaoMapInstance) => void
 }
 
 /**
@@ -45,9 +23,10 @@ export default function MapContainer({
   center = DEFAULT_MAP_CENTER,
   zoomLevel = DEFAULT_MAP_LEVEL,
   className = '',
+  onMapReady,
 }: MapContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<KakaoMap | null>(null)
+  const mapInstanceRef = useRef<KakaoMapInstance | null>(null)
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
 
   useEffect(() => {
@@ -91,12 +70,14 @@ export default function MapContainer({
 
       const { maps } = window.kakao!
       const latlng = new maps.LatLng(center.lat, center.lng)
-      mapInstanceRef.current = new maps.Map(containerRef.current, {
+      const mapInstance = new maps.Map(containerRef.current, {
         center: latlng,
         level: zoomLevel,
       })
+      mapInstanceRef.current = mapInstance
 
       setLoadState('ready')
+      onMapReady?.(mapInstance)
     })
   }
 

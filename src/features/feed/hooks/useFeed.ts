@@ -1,4 +1,3 @@
-// Firestore `plots` 컬렉션에서 공개 플롯을 최신순으로 페이지네이션 조회하는 훅
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   collection,
@@ -10,128 +9,104 @@ import {
   getDocs,
   type QueryDocumentSnapshot,
   type DocumentData,
+  Timestamp,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import type { Plot } from '@/shared/types'
 
 const PAGE_SIZE = 12
 
-interface FeedState {
-  plots: Plot[]
-  loading: boolean
-  loadingMore: boolean
-  error: string | null
-  hasMore: boolean
-}
-
-interface UseFeedReturn extends FeedState {
-  loadMore: () => Promise<void>
-  refresh: () => void
-}
-
-/** Firestore DocumentData → Plot 변환 (타입 안전 narrowing) */
-function toPlot(doc: QueryDocumentSnapshot<DocumentData>): Plot {
+function docToPlot(doc: QueryDocumentSnapshot<DocumentData>): Plot {
   const d = doc.data()
   return {
     id: doc.id,
-    title: typeof d['title'] === 'string' ? d['title'] : '',
-    description: typeof d['description'] === 'string' ? d['description'] : undefined,
-    authorId: typeof d['authorId'] === 'string' ? d['authorId'] : '',
-    authorName: typeof d['authorName'] === 'string' ? d['authorName'] : '',
-    pins: Array.isArray(d['pins']) ? d['pins'] : [],
-    pinIds: Array.isArray(d['pinIds']) ? d['pinIds'] : [],
-    tags: Array.isArray(d['tags']) ? d['tags'] : [],
-    coverImageUrl: typeof d['coverImageUrl'] === 'string' ? d['coverImageUrl'] : undefined,
-    creatorSupportUrl:
-      typeof d['creatorSupportUrl'] === 'string' ? d['creatorSupportUrl'] : undefined,
-    isPublic: typeof d['isPublic'] === 'boolean' ? d['isPublic'] : true,
-    scrapCount: typeof d['scrapCount'] === 'number' ? d['scrapCount'] : 0,
-    createdAt: d['createdAt']?.toDate?.() ?? new Date(0),
-    updatedAt: d['updatedAt']?.toDate?.() ?? new Date(0),
+    title: d.title ?? '',
+    description: d.description,
+    authorId: d.authorId ?? '',
+    authorName: d.authorName ?? '',
+    pins: d.pins ?? [],
+    pinIds: d.pinIds ?? [],
+    tags: d.tags ?? [],
+    coverImageUrl: d.coverImageUrl,
+    creatorSupportUrl: d.creatorSupportUrl,
+    isPublic: d.isPublic ?? true,
+    scrapCount: d.scrapCount ?? 0,
+    createdAt: d.createdAt instanceof Timestamp ? d.createdAt.toDate() : new Date(d.createdAt),
+    updatedAt: d.updatedAt instanceof Timestamp ? d.updatedAt.toDate() : new Date(d.updatedAt),
   }
 }
 
-export function useFeed(): UseFeedReturn {
+interface UseFeedResult {
+  plots: Plot[]
+  loading: boolean
+  loadingMore: boolean
+  hasMore: boolean
+  error: string | null
+  loadMore: () => void
+}
+
+export function useFeed(): UseFeedResult {
   const [plots, setPlots] = useState<Plot[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
-
-  // 마지막으로 조회된 문서 커서 — loadMore에서 startAfter로 사용
+  const [error, setError] = useState<string | null>(null)
   const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | null>(null)
-  // 초기화 트리거 (refresh 호출 시 카운터 증가)
-  const [refreshKey, setRefreshKey] = useState(0)
 
-  // 첫 페이지 로드 (refreshKey가 바뀔 때마다 재실행)
+  const fetchPage = useCallback(async (after: QueryDocumentSnapshot<DocumentData> | null) => {
+    const baseQuery = query(
+      collection(db, 'plots'),
+      where('isPublic', '==', true),
+      orderBy('createdAt', 'desc'),
+      limit(PAGE_SIZE),
+    )
+    const q = after ? query(baseQuery, startAfter(after)) : baseQuery
+    const snap = await getDocs(q)
+    return snap
+  }, [])
+
+  // 초기 로드
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
+    setError(null)
 
-    async function fetchFirst() {
-      setLoading(true)
-      setError(null)
-      lastDocRef.current = null
-
-      try {
-        const q = query(
-          collection(db, 'plots'),
-          where('isPublic', '==', true),
-          orderBy('createdAt', 'desc'),
-          limit(PAGE_SIZE),
-        )
-        const snapshot = await getDocs(q)
+    fetchPage(null)
+      .then((snap) => {
         if (cancelled) return
-
-        const fetched = snapshot.docs.map(toPlot)
-        lastDocRef.current = snapshot.docs[snapshot.docs.length - 1] ?? null
-        setPlots(fetched)
-        setHasMore(snapshot.docs.length === PAGE_SIZE)
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : '피드를 불러오는 데 실패했습니다.')
-        }
-      } finally {
+        const docs = snap.docs
+        lastDocRef.current = docs[docs.length - 1] ?? null
+        setPlots(docs.map(docToPlot))
+        setHasMore(docs.length === PAGE_SIZE)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : '피드를 불러오지 못했습니다.')
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false)
-      }
-    }
+      })
 
-    fetchFirst()
-    return () => {
-      cancelled = true
-    }
-  }, [refreshKey])
+    return () => { cancelled = true }
+  }, [fetchPage])
 
-  // 다음 페이지 로드
-  const loadMore = useCallback(async () => {
+  const loadMore = useCallback(() => {
     if (loadingMore || !hasMore || !lastDocRef.current) return
-
     setLoadingMore(true)
     setError(null)
 
-    try {
-      const q = query(
-        collection(db, 'plots'),
-        where('isPublic', '==', true),
-        orderBy('createdAt', 'desc'),
-        startAfter(lastDocRef.current),
-        limit(PAGE_SIZE),
-      )
-      const snapshot = await getDocs(q)
+    fetchPage(lastDocRef.current)
+      .then((snap) => {
+        const docs = snap.docs
+        lastDocRef.current = docs[docs.length - 1] ?? lastDocRef.current
+        setPlots((prev) => [...prev, ...docs.map(docToPlot)])
+        setHasMore(docs.length === PAGE_SIZE)
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : '추가 피드를 불러오지 못했습니다.')
+      })
+      .finally(() => setLoadingMore(false))
+  }, [loadingMore, hasMore, fetchPage])
 
-      const fetched = snapshot.docs.map(toPlot)
-      lastDocRef.current = snapshot.docs[snapshot.docs.length - 1] ?? lastDocRef.current
-      setPlots((prev) => [...prev, ...fetched])
-      setHasMore(snapshot.docs.length === PAGE_SIZE)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '추가 피드를 불러오는 데 실패했습니다.')
-    } finally {
-      setLoadingMore(false)
-    }
-  }, [loadingMore, hasMore])
-
-  const refresh = useCallback(() => {
-    setRefreshKey((k) => k + 1)
-  }, [])
-
-  return { plots, loading, loadingMore, error, hasMore, loadMore, refresh }
+  return { plots, loading, loadingMore, hasMore, error, loadMore }
 }

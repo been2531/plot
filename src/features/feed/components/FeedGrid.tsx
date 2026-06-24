@@ -4,12 +4,10 @@ import type { Plot } from '@/shared/types'
 interface FeedGridProps {
   plots: Plot[]
   isLoading?: boolean
-  /** 스크랩된 플롯 ID 집합 — PlotCard에 전달 */
-  scrappedIds?: Set<string>
-  onScrap?: (plotId: string) => void
+  uid?: string | null
 }
 
-export default function FeedGrid({ plots, isLoading = false, scrappedIds, onScrap }: FeedGridProps) {
+export default function FeedGrid({ plots, isLoading = false, uid = null }: FeedGridProps) {
   if (isLoading) {
     return <FeedSkeleton />
   }
@@ -35,8 +33,7 @@ export default function FeedGrid({ plots, isLoading = false, scrappedIds, onScra
         <PlotCard
           key={plot.id}
           plot={plot}
-          isScrapped={scrappedIds?.has(plot.id)}
-          onScrap={onScrap}
+          uid={uid}
         />
       ))}
     </div>
