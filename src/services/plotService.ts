@@ -32,6 +32,12 @@ export interface CreatePlotInput {
   creatorSupportUrl?: string
 }
 
+function stripUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined),
+  ) as Partial<T>
+}
+
 /** plots 컬렉션에 새 플롯을 생성하고 doc ID를 반환 */
 export async function createPlot(input: CreatePlotInput): Promise<string> {
   const ref = await addDoc(collection(db, 'plots'), {
@@ -52,10 +58,13 @@ export async function createPlot(input: CreatePlotInput): Promise<string> {
   // pins 서브컬렉션 + 최상위 pins 컬렉션에 동시 기록
   // 최상위 pins/{pinId}는 useMapPins의 뷰포트 지오 쿼리용 (lat/lng 범위 필터)
   await Promise.all(
-    input.pins.flatMap((pin) => [
-      setDoc(doc(db, 'plots', ref.id, 'pins', pin.id), { ...pin, plotId: ref.id }),
-      setDoc(doc(db, 'pins', pin.id), { ...pin, plotId: ref.id, isPublic: input.isPublic }),
-    ]),
+    input.pins.flatMap((pin) => {
+      const pinData = stripUndefined({ ...pin, plotId: ref.id })
+      return [
+        setDoc(doc(db, 'plots', ref.id, 'pins', pin.id), pinData),
+        setDoc(doc(db, 'pins', pin.id), { ...pinData, isPublic: input.isPublic }),
+      ]
+    }),
   )
 
   return ref.id
